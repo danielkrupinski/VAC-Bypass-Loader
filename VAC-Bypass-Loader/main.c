@@ -100,52 +100,54 @@ VOID waitOnModule(DWORD processId, PCWSTR moduleName)
 
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nShowCmd)
 {
-    PWSTR programFiles;
-    if (SUCCEEDED(SHGetKnownFolderPath(&FOLDERID_ProgramFiles, 0, NULL, &programFiles))) {
-        WCHAR steamPath[MAX_PATH];
-        lstrcatW(lstrcpyW(steamPath, programFiles), L"\\Steam\\Steam.exe");
-        CoTaskMemFree(programFiles);
+    HKEY key = NULL;
+    if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
+        WCHAR steamPath[MAX_PATH] = { 0 };
+        LONG steamPathSize = MAX_PATH;
 
-        STARTUPINFOW info = { sizeof(info) };
+        if (!RegQueryValueExW(key, L"InstallPath", NULL, NULL, (LPBYTE)steamPath, &steamPathSize)) {
+            lstrcatW(steamPath, L"\\Steam.exe");
 
-        PROCESS_INFORMATION processInfo;
+            STARTUPINFOW info = { sizeof(info) };
+            PROCESS_INFORMATION processInfo;
 
-        if (CreateProcessW(steamPath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &processInfo)) {
-            waitOnModule(processInfo.dwProcessId, L"Steam.exe");
-            SuspendThread(processInfo.hThread);
+            if (CreateProcessW(steamPath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &processInfo)) {
+                waitOnModule(processInfo.dwProcessId, L"Steam.exe");
+                SuspendThread(processInfo.hThread);
 
-            PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(binary + ((PIMAGE_DOS_HEADER)binary)->e_lfanew);
+                PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(binary + ((PIMAGE_DOS_HEADER)binary)->e_lfanew);
 
-            PBYTE executableImage = VirtualAllocEx(processInfo.hProcess, NULL, ntHeaders->OptionalHeader.SizeOfImage,
-                MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+                PBYTE executableImage = VirtualAllocEx(processInfo.hProcess, NULL, ntHeaders->OptionalHeader.SizeOfImage,
+                    MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-            WriteProcessMemory(processInfo.hProcess, executableImage, binary,
-                ntHeaders->OptionalHeader.SizeOfHeaders, NULL);
+                WriteProcessMemory(processInfo.hProcess, executableImage, binary,
+                    ntHeaders->OptionalHeader.SizeOfHeaders, NULL);
 
-            PIMAGE_SECTION_HEADER sectionHeaders = (PIMAGE_SECTION_HEADER)(ntHeaders + 1);
-            for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
-                WriteProcessMemory(processInfo.hProcess, executableImage + sectionHeaders[i].VirtualAddress,
-                    binary + sectionHeaders[i].PointerToRawData, sectionHeaders[i].SizeOfRawData, NULL);
+                PIMAGE_SECTION_HEADER sectionHeaders = (PIMAGE_SECTION_HEADER)(ntHeaders + 1);
+                for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
+                    WriteProcessMemory(processInfo.hProcess, executableImage + sectionHeaders[i].VirtualAddress,
+                        binary + sectionHeaders[i].PointerToRawData, sectionHeaders[i].SizeOfRawData, NULL);
 
-            LoaderData* loaderMemory = VirtualAllocEx(processInfo.hProcess, NULL, 4096, MEM_COMMIT | MEM_RESERVE,
-                PAGE_EXECUTE_READ);
+                LoaderData* loaderMemory = VirtualAllocEx(processInfo.hProcess, NULL, 4096, MEM_COMMIT | MEM_RESERVE,
+                    PAGE_EXECUTE_READ);
 
-            LoaderData loaderParams;
-            loaderParams.imageBase = executableImage;
-            loaderParams.loadLibraryA = LoadLibraryA;
-            loaderParams.getProcAddress = GetProcAddress;
-            loaderParams.rtlZeroMemory = (VOID(WINAPI*)(PVOID, SIZE_T))GetProcAddress(LoadLibraryW(L"ntdll"), "RtlZeroMemory");
+                LoaderData loaderParams;
+                loaderParams.imageBase = executableImage;
+                loaderParams.loadLibraryA = LoadLibraryA;
+                loaderParams.getProcAddress = GetProcAddress;
+                loaderParams.rtlZeroMemory = (VOID(WINAPI*)(PVOID, SIZE_T))GetProcAddress(LoadLibraryW(L"ntdll"), "RtlZeroMemory");
 
-            WriteProcessMemory(processInfo.hProcess, loaderMemory, &loaderParams, sizeof(LoaderData),
-                NULL);
-            WriteProcessMemory(processInfo.hProcess, loaderMemory + 1, loadLibrary,
-                (DWORD)stub - (DWORD)loadLibrary, NULL);
-            HANDLE thread = CreateRemoteThread(processInfo.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)(loaderMemory + 1),
-                loaderMemory, 0, NULL);
+                WriteProcessMemory(processInfo.hProcess, loaderMemory, &loaderParams, sizeof(LoaderData),
+                    NULL);
+                WriteProcessMemory(processInfo.hProcess, loaderMemory + 1, loadLibrary,
+                    (DWORD)stub - (DWORD)loadLibrary, NULL);
+                HANDLE thread = CreateRemoteThread(processInfo.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)(loaderMemory + 1),
+                    loaderMemory, 0, NULL);
 
-            ResumeThread(processInfo.hThread);
-            WaitForSingleObject(thread, INFINITE);
-            VirtualFreeEx(processInfo.hProcess, loaderMemory, 0, MEM_RELEASE);
+                ResumeThread(processInfo.hThread);
+                WaitForSingleObject(thread, INFINITE);
+                VirtualFreeEx(processInfo.hProcess, loaderMemory, 0, MEM_RELEASE);
+            }
         }
     }
     return TRUE;
