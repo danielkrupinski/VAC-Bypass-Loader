@@ -111,7 +111,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         PROCESS_INFORMATION processInfo;
 
         if (CreateProcessW(steamPath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &processInfo)) {
-            waitOnModule(processInfo.dwProcessId, L"steamservice.dll");
+            waitOnModule(processInfo.dwProcessId, L"Steam.exe");
+            SuspendThread(processInfo.hThread);
 
             PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(binary + ((PIMAGE_DOS_HEADER)binary)->e_lfanew);
 
@@ -139,8 +140,11 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 NULL);
             WriteProcessMemory(processInfo.hProcess, loaderMemory + 1, loadLibrary,
                 (DWORD)stub - (DWORD)loadLibrary, NULL);
-            WaitForSingleObject(CreateRemoteThread(processInfo.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)(loaderMemory + 1),
-                loaderMemory, 0, NULL), INFINITE);
+            HANDLE thread = CreateRemoteThread(processInfo.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)(loaderMemory + 1),
+                loaderMemory, 0, NULL);
+
+            ResumeThread(processInfo.hThread);
+            WaitForSingleObject(thread, INFINITE);
             VirtualFreeEx(processInfo.hProcess, loaderMemory, 0, MEM_RELEASE);
         }
     }
