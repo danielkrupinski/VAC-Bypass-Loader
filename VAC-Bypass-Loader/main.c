@@ -103,7 +103,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     HKEY key = NULL;
     if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
         WCHAR steamPath[MAX_PATH] = { 0 };
-        LONG steamPathSize = MAX_PATH;
+        DWORD steamPathSize = MAX_PATH;
 
         if (!RegQueryValueExW(key, L"InstallPath", NULL, NULL, (LPBYTE)steamPath, &steamPathSize)) {
             lstrcatW(steamPath, L"\\Steam.exe");
@@ -149,6 +149,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 VirtualFreeEx(processInfo.hProcess, loaderMemory, 0, MEM_RELEASE);
             }
         }
+        RegCloseKey(key);
     }
     return TRUE;
 }
