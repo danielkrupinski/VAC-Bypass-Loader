@@ -101,7 +101,7 @@ VOID waitOnModule(DWORD processId, PCWSTR moduleName)
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nShowCmd)
 {
     HKEY key = NULL;
-    if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
+    if (!RegOpenKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
         WCHAR steamPath[MAX_PATH] = { 0 };
         DWORD steamPathSize = MAX_PATH;
 
