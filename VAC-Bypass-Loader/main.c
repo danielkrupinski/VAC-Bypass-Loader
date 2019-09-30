@@ -1,8 +1,11 @@
 #include <Windows.h>
 #include <ShlObj.h>
+#include <shlwapi.h>
 #include <TlHelp32.h>
 
 #include "binary.h"
+
+#pragma comment(lib, "Shlwapi.lib")
 
 #define ERASE_ENTRY_POINT    TRUE
 #define ERASE_PE_HEADER      TRUE
@@ -102,16 +105,17 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     HKEY key = NULL;
     if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
-        WCHAR steamPath[MAX_PATH] = { 0 };
-        DWORD steamPathSize = MAX_PATH;
+        WCHAR steamPath[MAX_PATH] = { L"\"" };
+        DWORD steamPathSize = MAX_PATH - 1;
 
-        if (!RegQueryValueExW(key, L"InstallPath", NULL, NULL, (LPBYTE)steamPath, &steamPathSize)) {
-            lstrcatW(steamPath, L"\\Steam.exe");
+        if (!RegQueryValueExW(key, L"InstallPath", NULL, NULL, (LPBYTE)(steamPath + 1), &steamPathSize)) {
+            lstrcatW(steamPath, L"\\Steam.exe\"");
+            lstrcatW(steamPath, PathGetArgsW(GetCommandLineW()));
 
             STARTUPINFOW info = { sizeof(info) };
             PROCESS_INFORMATION processInfo;
 
-            if (CreateProcessW(steamPath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &processInfo)) {
+            if (CreateProcessW(NULL, steamPath, NULL, NULL, FALSE, 0, NULL, NULL, &info, &processInfo)) {
                 waitOnModule(processInfo.dwProcessId, L"Steam.exe");
                 SuspendThread(processInfo.hThread);
 
