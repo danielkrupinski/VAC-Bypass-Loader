@@ -11,7 +11,7 @@
 #define ERASE_PE_HEADER      TRUE
 
 typedef struct {
-    PBYTE imageBase;
+    PBYTE baseAddress;
     HMODULE(WINAPI* loadLibraryA)(PCSTR);
     FARPROC(WINAPI* getProcAddress)(HMODULE, PCSTR);
     VOID(WINAPI* rtlZeroMemory)(PVOID, SIZE_T);
@@ -19,33 +19,34 @@ typedef struct {
 
 DWORD WINAPI loadLibrary(LoaderData* loaderData)
 {
-    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(loaderData->imageBase + ((PIMAGE_DOS_HEADER)loaderData->imageBase)->e_lfanew);
-    PIMAGE_BASE_RELOCATION relocation = (PIMAGE_BASE_RELOCATION)(loaderData->imageBase
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(loaderData->baseAddress + ((PIMAGE_DOS_HEADER)loaderData->baseAddress)->e_lfanew);
+
+    PIMAGE_BASE_RELOCATION relocation = (PIMAGE_BASE_RELOCATION)(loaderData->baseAddress
         + ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
-    DWORD delta = (DWORD)(loaderData->imageBase - ntHeaders->OptionalHeader.ImageBase);
+    DWORD delta = (DWORD)(loaderData->baseAddress - ntHeaders->OptionalHeader.ImageBase);
     while (relocation->VirtualAddress) {
         PWORD relocationInfo = (PWORD)(relocation + 1);
         for (int i = 0, count = (relocation->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD); i < count; i++)
             if (relocationInfo[i] >> 12 == IMAGE_REL_BASED_HIGHLOW)
-                * (PDWORD)(loaderData->imageBase + (relocation->VirtualAddress + (relocationInfo[i] & 0xFFF))) += delta;
+                * (PDWORD)(loaderData->baseAddress + (relocation->VirtualAddress + (relocationInfo[i] & 0xFFF))) += delta;
 
         relocation = (PIMAGE_BASE_RELOCATION)((LPBYTE)relocation + relocation->SizeOfBlock);
     }
 
-    PIMAGE_IMPORT_DESCRIPTOR importDirectory = (PIMAGE_IMPORT_DESCRIPTOR)(loaderData->imageBase
+    PIMAGE_IMPORT_DESCRIPTOR importDirectory = (PIMAGE_IMPORT_DESCRIPTOR)(loaderData->baseAddress
         + ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
     while (importDirectory->Characteristics) {
-        PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)(loaderData->imageBase + importDirectory->OriginalFirstThunk);
-        PIMAGE_THUNK_DATA firstThunk = (PIMAGE_THUNK_DATA)(loaderData->imageBase + importDirectory->FirstThunk);
+        PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)(loaderData->baseAddress + importDirectory->OriginalFirstThunk);
+        PIMAGE_THUNK_DATA firstThunk = (PIMAGE_THUNK_DATA)(loaderData->baseAddress + importDirectory->FirstThunk);
 
-        HMODULE module = loaderData->loadLibraryA((LPCSTR)loaderData->imageBase + importDirectory->Name);
+        HMODULE module = loaderData->loadLibraryA((LPCSTR)loaderData->baseAddress + importDirectory->Name);
 
         if (!module)
             return FALSE;
 
         while (originalFirstThunk->u1.AddressOfData) {
-            DWORD Function = (DWORD)loaderData->getProcAddress(module, originalFirstThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG ? (LPCSTR)(originalFirstThunk->u1.Ordinal & 0xFFFF) : ((PIMAGE_IMPORT_BY_NAME)((LPBYTE)loaderData->imageBase + originalFirstThunk->u1.AddressOfData))->Name);
+            DWORD Function = (DWORD)loaderData->getProcAddress(module, originalFirstThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG ? (LPCSTR)(originalFirstThunk->u1.Ordinal & 0xFFFF) : ((PIMAGE_IMPORT_BY_NAME)((LPBYTE)loaderData->baseAddress + originalFirstThunk->u1.AddressOfData))->Name);
 
             if (!Function)
                 return FALSE;
@@ -59,15 +60,15 @@ DWORD WINAPI loadLibrary(LoaderData* loaderData)
 
     if (ntHeaders->OptionalHeader.AddressOfEntryPoint) {
         DWORD result = ((DWORD(__stdcall*)(HMODULE, DWORD, LPVOID))
-            (loaderData->imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint))
-            ((HMODULE)loaderData->imageBase, DLL_PROCESS_ATTACH, NULL);
+            (loaderData->baseAddress + ntHeaders->OptionalHeader.AddressOfEntryPoint))
+            ((HMODULE)loaderData->baseAddress, DLL_PROCESS_ATTACH, NULL);
 
 #if ERASE_ENTRY_POINT
-        loaderData->rtlZeroMemory(loaderData->imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint, 32);
+        loaderData->rtlZeroMemory(loaderData->baseAddress + ntHeaders->OptionalHeader.AddressOfEntryPoint, 32);
 #endif
 
 #if ERASE_PE_HEADER
-        loaderData->rtlZeroMemory(loaderData->imageBase, ntHeaders->OptionalHeader.SizeOfHeaders);
+        loaderData->rtlZeroMemory(loaderData->baseAddress, ntHeaders->OptionalHeader.SizeOfHeaders);
 #endif
         return result;
     }
@@ -136,10 +137,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     PAGE_EXECUTE_READ);
 
                 LoaderData loaderParams;
-                loaderParams.imageBase = executableImage;
+                loaderParams.baseAddress = executableImage;
                 loaderParams.loadLibraryA = LoadLibraryA;
                 loaderParams.getProcAddress = GetProcAddress;
-                loaderParams.rtlZeroMemory = (VOID(WINAPI*)(PVOID, SIZE_T))GetProcAddress(LoadLibraryW(L"ntdll"), "RtlZeroMemory");
+                loaderParams.rtlZeroMemory = (PVOID)GetProcAddress(LoadLibraryW(L"ntdll"), "RtlZeroMemory");
 
                 WriteProcessMemory(processInfo.hProcess, loaderMemory, &loaderParams, sizeof(LoaderData),
                     NULL);
