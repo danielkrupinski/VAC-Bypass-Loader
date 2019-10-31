@@ -150,6 +150,9 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ResumeThread(processInfo.hThread);
                 WaitForSingleObject(thread, INFINITE);
                 VirtualFreeEx(processInfo.hProcess, loaderMemory, 0, MEM_RELEASE);
+
+                CloseHandle(processInfo.hProcess);
+                CloseHandle(processInfo.hThread);
             }
         }
         RegCloseKey(key);
