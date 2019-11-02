@@ -134,6 +134,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             lstrcatW(steamPath, L"\\Steam.exe\"");
             lstrcatW(steamPath, PathGetArgsW(GetCommandLineW()));
 
+            killAnySteamProcess();
+
             STARTUPINFOW info = { sizeof(info) };
             PROCESS_INFORMATION processInfo;
 
