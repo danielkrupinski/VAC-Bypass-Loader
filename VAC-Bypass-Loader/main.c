@@ -109,7 +109,7 @@ VOID killAnySteamProcess()
     if (Process32FirstW(processSnapshot, &processEntry)) {
         PCWSTR steamProcesses[] = { L"Steam.exe", L"SteamService.exe", L"steamwebhelper.exe" };
         do {
-            for (INT i = 0; i < sizeof(steamProcesses) / sizeof(steamProcesses[0]); i++) {
+            for (INT i = 0; i < _countof(steamProcesses); i++) {
                 if (!lstrcmpW(processEntry.szExeFile, steamProcesses[i])) {
                     HANDLE processHandle = OpenProcess(PROCESS_TERMINATE, FALSE, processEntry.th32ProcessID);
                     if (processHandle) {
