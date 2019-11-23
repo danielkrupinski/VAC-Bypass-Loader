@@ -89,7 +89,7 @@ VOID waitOnModule(DWORD processId, PCWSTR moduleName)
 
         if (Module32FirstW(moduleSnapshot, &moduleEntry)) {
             do {
-                if (!lstrcmpW(moduleEntry.szModule, moduleName)) {
+                if (!lstrcmpiW(moduleEntry.szModule, moduleName)) {
                     foundModule = TRUE;
                     break;
                 }
