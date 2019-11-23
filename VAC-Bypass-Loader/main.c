@@ -127,7 +127,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     HKEY key = NULL;
     if (!RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
-        WCHAR steamPath[MAX_PATH] = { L"\"" };
+        WCHAR steamPath[MAX_PATH];
+        steamPath[0] = L'"';
         DWORD steamPathSize = sizeof(steamPath) - sizeof(WCHAR);
 
         if (!RegQueryValueExW(key, L"SteamExe", NULL, NULL, (LPBYTE)(steamPath + 1), &steamPathSize)) {
