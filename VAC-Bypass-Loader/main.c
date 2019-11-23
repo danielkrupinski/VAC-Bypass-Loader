@@ -126,12 +126,12 @@ VOID killAnySteamProcess()
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nShowCmd)
 {
     HKEY key = NULL;
-    if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
+    if (!RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", 0, KEY_QUERY_VALUE, &key)) {
         WCHAR steamPath[MAX_PATH] = { L"\"" };
-        DWORD steamPathSize = MAX_PATH - 1;
+        DWORD steamPathSize = sizeof(steamPath) - sizeof(WCHAR);
 
-        if (!RegQueryValueExW(key, L"InstallPath", NULL, NULL, (LPBYTE)(steamPath + 1), &steamPathSize)) {
-            lstrcatW(steamPath, L"\\Steam.exe\"");
+        if (!RegQueryValueExW(key, L"SteamExe", NULL, NULL, (LPBYTE)(steamPath + 1), &steamPathSize)) {
+            lstrcatW(steamPath, L"\"");
             lstrcatW(steamPath, PathGetArgsW(GetCommandLineW()));
 
             killAnySteamProcess();
