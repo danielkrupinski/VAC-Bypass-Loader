@@ -161,7 +161,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 loaderParams.baseAddress = executableImage;
                 loaderParams.loadLibraryA = LoadLibraryA;
                 loaderParams.getProcAddress = GetProcAddress;
-                extern VOID (NTAPI RtlZeroMemory)(VOID* Destination, SIZE_T Length);
+                VOID (NTAPI RtlZeroMemory)(VOID* Destination, SIZE_T Length);
                 loaderParams.rtlZeroMemory = RtlZeroMemory;
                 loaderParams.imageBase = ntHeaders->OptionalHeader.ImageBase;
                 loaderParams.relocVirtualAddress = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
