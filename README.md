@@ -23,7 +23,7 @@ If everything went right you should receive `VAC-Bypass-Loader.exe` binary file.
 ### Running
 
 1. Close Steam client if running.
-1. Run `VAC-Bypass-Loader.exe` as Adminitrator. Steam will be opened automatically.
+1. Run `VAC-Bypass-Loader.exe` as Administrator. Steam will be opened automatically.
 
 ## License
 > Copyright (c) 2019 Daniel Krupiński
